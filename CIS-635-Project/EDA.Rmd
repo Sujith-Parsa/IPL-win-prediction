@@ -1,0 +1,232 @@
+---
+title: "Exploratry Match Data analysis"
+author: "Sujith Prakash Parsa, Kavya Inampudi, Sathya Kiran Gandavarapu"
+date: "`r Sys.Date()`"
+output:
+  prettydoc::html_pretty:
+    theme: architect
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, warning = FALSE)
+```
+
+## Setup
+
+### Loading the required libraries
+
+```{r}
+library(tidyverse)
+library(plotly)
+library(ggplot2)
+library(skimr)
+```
+
+## Loading the datasets 
+
+```{r}
+MatchResult <- read.csv("matches.csv")
+```
+
+```{r}
+DeliveriesData <- read.csv("deliveries.csv")
+```
+
+## Understanding the data using skim() function
+
+```{r}
+skim(MatchResult)
+```
+```{r}
+skim(DeliveriesData)
+```
+
+## ommiting the missing values from the data
+
+```{r}
+# umpire3 columns only consists of NA values it is redundant information
+MatchResult$umpire3 <- NULL
+head(MatchResult)
+```
+
+```{r}
+# Removing the rows with no result
+MatchResult <- MatchResult %>% filter(!(MatchResult$result == c("no result", "tie")))
+
+```
+
+```{r}
+# Changing the name of a team because they are same
+MatchResult[MatchResult == "Rising Pune Supergiant"] <- "Rising Pune Supergiants"
+```
+
+
+## Exploratory Data Analysis
+
+### Finding the team with most wins
+
+```{r}
+MostWins <- MatchResult %>% count(winner)
+MostWins <- MostWins %>% arrange(desc(n))
+```
+
+```{r}
+MostWins %>% ggplot(aes(x = fct_reorder(winner, n), y = n, color = "black", fill = winner)) + 
+  geom_col() +
+  coord_flip() +
+  labs(title = "Most wins by teams",
+       x = "Teams",
+       y = "Number of wins",
+       caption = "IPL Dataset of matches from 2008 - 2017") +
+  theme_bw() +
+  theme()
+  
+```
+
+### Teams who won the most when they won the toss
+
+```{r}
+MostToss <- MatchResult %>% filter(toss_winner == winner) %>% count(toss_winner)
+```
+
+```{r}
+MostToss %>% ggplot(aes(x = fct_reorder(toss_winner, n), y = n, color = "black", fill = toss_winner)) + 
+  geom_col() +
+  coord_flip() +
+  labs(title = "Most wins when a team won Toss",
+       x = "Teams",
+       y = "Number of wins",
+       caption = "IPL Dataset of matches from 2008 - 2017") +
+  theme_bw() +
+  theme()
+```
+
+### Teams who chose to bat first and win
+
+```{r}
+Mostwins_Batfirst <- MatchResult %>% filter((toss_winner == winner) & (toss_decision == "bat")) %>% count(winner)
+```
+
+```{r}
+Mostwins_Batfirst %>% ggplot(aes(x = fct_reorder(winner, n), y = n, color = "black", fill = winner)) + 
+  geom_col() +
+  coord_flip() +
+  labs(title = "Most wins by teams when choose to Bat first",
+       x = "Teams",
+       y = "Number of wins",
+       caption = "IPL Dataset of matches from 2008 - 2017") +
+  theme_bw() +
+  theme()
+```
+
+### Teams who chose to field first and win
+
+```{r}
+Mostwins_fieldfirst <- MatchResult %>% filter((toss_winner == winner) & (toss_decision == "field")) %>% count(winner)
+```
+
+```{r}
+Mostwins_fieldfirst %>% ggplot(aes(x = fct_reorder(winner, n), y = n, color = "black", fill = winner)) + 
+  geom_col() +
+  coord_flip() +
+  labs(title = "Most wins by teams when choose to Field first",
+       x = "Teams",
+       y = "Number of wins",
+       caption = "IPL Dataset of matches from 2008 - 2017") +
+  theme_bw() +
+  theme()
+```
+
+### Players who won the most Player_of_match(MVP)
+
+```{r}
+Most_Player_of_match <- MatchResult %>% count(player_of_match) %>% filter(n > 10)
+```
+
+```{r}
+Most_Player_of_match %>% ggplot(aes(x = fct_reorder(player_of_match, n), y = n, color = "black", fill = player_of_match)) +
+  geom_col() +
+  theme_bw() + 
+  coord_flip() +
+  labs(title = " Players who won the most Player_of_Matches(MVP)",
+       x = "Name of the Player",
+       y = " Number of MVPs",
+       caption =  "IPL Dataset of matches from 2008 - 2017") +
+  theme(legend.position = " ",)
+```
+
+### Distribution of teams winng by more than 50 runs
+
+```{r}
+MostWin_byruns <- MatchResult %>% filter(win_by_runs > 50) 
+```
+
+```{r}
+MostWin_byruns %>% ggplot(aes(x = win_by_runs, color = "black", fill = winner)) +
+  geom_histogram() +
+  labs(title = "Distribution of teams winning by more than 50 runs",
+       x = "Win by Runs",
+       y = "Number of times the team won",
+       caption = "IPL Dataset of matches from 2008 - 2017") +
+  theme_bw() +
+  theme()
+```
+
+### Similarly Distribution of teams win by more than 5 wickets
+
+```{r}
+MostWin_bywickets <- MatchResult %>% filter(win_by_wickets >= 5)
+```
+
+```{r}
+MostWin_bywickets %>% ggplot(aes(x = win_by_wickets, color = "black", fill = winner)) +
+  geom_histogram() +
+  labs(title = "Distribution of teams winning by more than 5 wickets",
+       x = "Win by wickets",
+       y = "Number of times the team won",
+       caption = "IPL Dataset of matches from 2008 - 2017") +
+  theme_bw() +
+  theme()
+```
+
+### Find how many unique matches have been recorded in deliveries data
+
+```{r}
+UniqueMatches <- unique(DeliveriesData$match_id)
+UniqueMatches
+```
+
+This data set consists of data of 636 different matches including play-by-play data.
+
+
+### Taking a look at each match individually
+
+```{r}
+Match1 <- DeliveriesData %>% filter((match_id == 1))
+```
+
+```{r}
+Match1 %>% filter(inning == 1) %>% count(batsman_runs)
+```
+```{r}
+Match1 %>% filter(inning == 1) %>% count(dismissal_kind)
+```
+
+```{r}
+
+# This code is extracted from "https://plotly.com/r/pie-charts/"
+
+data <- Winning_chase
+
+fig <- plot_ly(data, labels = ~winner, values = ~n, type = 'pie')
+fig <- fig %>% layout(title = 'Match won when Field first',
+         xaxis = list(showgrid = FALSE, zeroline = FALSE, showticklabels = FALSE),
+         yaxis = list(showgrid = FALSE, zeroline = FALSE, showticklabels = FALSE))
+
+fig
+
+```
+
+
+
+
