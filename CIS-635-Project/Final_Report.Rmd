@@ -1,0 +1,416 @@
+---
+title: "Final Project Report"
+author: "Sujith Prakash Parsa, Kavya Inampudi, Sathya Kiran Gandavarapu"
+date: "`r Sys.Date()`"
+output:
+  rmdformats::material:
+    code_folding: show
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Introduction
+
+"Sports has the power to change the world and Inspire people." - Nelson Mandela.
+
+As we know, there can be no particular reason for people to like sports. There are countless reasons ranging from relaxing and enjoying oneself to feeling the excitement of something unpredictable happening. One such sport is cricket. It is one of the most popular sports in the world, with over 2.5 billion fans. With all the excitement comes the curiosity of trying to predict the winner of a match before it starts. To help with this, we devised the project "IPL Win Prediction."
+
+## Overview
+
+The project "IPL Win prediction" comes under the domain of Sports Analysis. In this project, we try to predict the winner of a cricket match based on data from cricket matches for the past ten years using Decision Tree algorithm and also evaluate if the algorithm is suited for this problem. Next, after cleaning and exploring the data, it is divided into two parts, training and testing, In the ratio of 70:30 so the algorithm can be trained and tested to further analyze it.
+
+
+# Related Work
+
+The paper "A review of data mining techniques for result prediction in sports" was found using "google scholar" and it works on data from various sports. This data is split into two parts training and testing. Training data is used to train the model, and testing data is used to check the accuracy of the trained model. In this way, the model is evaluated in this paper. 
+
+The authors used different algorithms such as Support Vector Machine(SVM), Bayesian method, Artificial Neural Network(ANN), Fuzzy system, and Logistic Regression. In this paper, the authors worked on the data for different sports and used a standard set of features. In our project, we select more reliable features that play a crucial role in predicting the result. The paper explores different sports, and our project deals with a single sport in detail.
+
+The kaggle notebook "ML in everything : IPL winner prediction" was found on "Kaggle.com" In this the author uses similar data to ours and only uses Random forest classifier to predict the result. In our project we use Decision Tree algorithm and analyze if the algorithm is suited for this problem.
+
+References
+
+Haghighat, M., Rastegari, H., Nourafza, N., Branch, N., & Esfahan, I. (2013). A review of data mining techniques for result prediction in sports. Advances in Computer Science: an International Journal, 2(5), 7-12.
+
+Horvat, T., & Job, J. (2020). The use of machine learning in sport outcome prediction: A review. Wiley Interdisciplinary Reviews: Data Mining and Knowledge Discovery, 10(5), e1380.
+
+Akshitrai. (2020, September 23). ML in everything : IPL winner prediction. Kaggle. Retrieved November 16, 2022, from https://www.kaggle.com/code/akshitrai/ml-in-everything-ipl-winner-prediction
+
+
+links:
+
+"https://www.researchgate.net/profile/Hamid-Rastegari-2/publication/
+262560138_A_Review_of_Data_Mining_Techniques_for_Result_Prediction_in_Sports/
+links/00b7d537f853eba5fe000000/
+A-Review-of-Data-Mining-Techniques-for-Result-Prediction-in-Sports.pdf"
+
+"https://www.kaggle.com/code/akshitrai/ml-in-everything-ipl-winner-prediction"
+
+"https://wires.onlinelibrary.wiley.com/doi/pdf/10.1002/
+widm.1380?casa_token=2XItw_L8N2cAAAAA%3AQBNGTCiw7x36yKoE5din8w37QbWwc2Dkx7ldBeBu
+hfHMuMqlP2yZNrHEloAKCm7jpI6Uj8LDdtw7NDjT"
+
+
+
+# Methods
+
+## About the Data set
+
+The data set used in this project is publicly available on Kaggle platform. The three data sets are "matches.csv" which has the data of every team which won and lost in the "Indian Premier League"(IPL) for the years 2008 - 2017. and "deliveries.csv" containing the play by play data of each match played. "IPl_Points_Table.csv" this data contains the points table data from the year
+2008 - 2017. 
+
+The below table contains description of each variable present in the data.
+
+```{r,warning=FALSE, message=FALSE,echo=FALSE}
+library(datadictionary)
+library(tidyverse)
+library(skimr)
+library(plotly)
+library(flextable)
+library(randomForest)
+
+matches <- read.csv("matches.csv")
+DeliveriesData <- read.csv("deliveries.csv")
+PointsTable <- read.csv("IPL_Points_Table.csv")
+
+infoTable<-datadictionary::create_dictionary(matches)
+```
+
+```{r,echo=FALSE}
+infoTable<- infoTable %>% slice(3,8,13,15,17,19,21,23,25,32,34,39,44,46,48,50)
+
+infoTable$label <- c("ID of the match",
+                      "Which season of IPL",
+                      "The city in which match is played in",
+                      "Date of the match",
+                      "Name of the team 1",
+                      "Name of the team 2",
+                      "Name of the team that won the toss",
+                      "Decision after winning the toss",
+                      "Result of the match",
+                      "Name of the team that won the match",
+                      "How many runs the team won by if bat first",
+                      "How many wickets the team won by if field first",
+                      "Player who palyed the best(MVP)",
+                      "Name of the stadium the match was played in",
+                      "Name of the primary umpire(Referee)",
+                      "Name of the secondary umpire(Referee)")
+
+infoTable <- select(infoTable,1:3)
+
+infoTable <- infoTable %>% rename(Variable = item,Description=label,Type=class)
+
+
+```
+
+```{r,echo=FALSE}
+infoTable[infoTable == "character"] <- "Categorical"
+infoTable[infoTable == "integer"] <- "Quantitative"
+
+flextable(infoTable, cwidth = 4, cheight = 1)
+```
+
+
+## Data preprocessing
+
+The libraries used in this project include  tidyverse, ggplot, and plotly, skimr, datadictonary. We used the "read.csv()" to import the datasets. Cleaning of the dataset
+we used the "filter()" function to remove the redundant rows and columns such as umpire3 column, rows with no result, changing the names of the team which describe the same team, and rows containing NA values. 
+
+```{r,warning=FALSE,message=FALSE}
+# umpire3 columns only consists of NA values it is redundant information
+matches$umpire3 <- NULL
+
+```
+
+```{r,warning=FALSE,message=FALSE}
+# Removing the rows with no result
+matches <- matches %>% filter(!(matches$result == c("no result", "tie")))
+
+```
+
+```{r,warning=FALSE,message=FALSE}
+# Changing the name of a team because they are same
+matches[matches == "Rising Pune Supergiant"] <- "Rising Pune Supergiants"
+```
+
+The IPL data set which we created is a combination of matches data as well as IPL_Points_Table
+because IPL_Points_Table has two variables Net.RR and Pts which are some key features used in the model Net.RR(Net Run rate) and Pts(Points in the season). 
+
+```{r}
+IplData <- matches %>% select(c(id,
+                                team1,
+                                team2,
+                                toss_winner,
+                                toss_decision,
+                                winner))
+
+IplData[IplData == "bat"] <- 1
+IplData[IplData == "field"] <- 2
+
+```
+
+```{r}
+IplData <- left_join(IplData, PointsTable, by = c("team1" = "Team"))
+IplData <- left_join(IplData, PointsTable, by = c("team2" = "Team"))
+IplData$Pld.x <- NULL
+IplData$Won.x <- NULL
+IplData$Lost.x <- NULL
+IplData$N.R.x <- NULL
+IplData$Pld.y <- NULL
+IplData$Won.y <- NULL
+IplData$Lost.y <- NULL
+IplData$N.R.y <- NULL
+
+```
+
+```{r}
+IplData <- IplData[complete.cases(IplData), ]
+
+IplData <- IplData %>% rename(c(Net.RR_team1 = Net.RR.x,
+                                Net.RR_team2 = Net.RR.y,
+                                Pts.team1 = Pts.x,
+                                Pts.team2 = Pts.y))
+IplData$id <- NULL
+
+IplData <- data.frame(IplData)
+```
+
+## Split the Data into two parts
+
+Before implementing the decision tree model we must split the data into two parts "train" data
+and "test" data in the ratio of 70:30 to train and test the model.
+
+```{r, warning=FALSE}
+# Split the data into training and testing sets
+
+library(caTools)
+set.seed(123)
+split = sample.split(IplData, SplitRatio = 0.70)
+train = subset(IplData, split == TRUE)
+test = subset(IplData, split == FALSE)
+
+```
+
+
+## Data Analysis
+
+The below plot shows the team with most number of wins.
+
+```{r,warning=FALSE,message=FALSE}
+MostToss <- matches %>% filter(toss_winner == winner) %>% count(toss_winner)
+
+MostToss %>% ggplot(aes(x = fct_reorder(toss_winner, n), y = n, color = "black", fill = toss_winner)) + 
+  geom_col() +
+  coord_flip() +
+  labs(title = "Most wins when a team won Toss",
+       x = "Teams",
+       y = "Number of wins",
+       caption = "IPL Dataset of matches from 2008 - 2017") +
+  theme_bw() +
+  theme(legend.position = "")
+
+```
+This graph shows which team chose to bat first and win the most.
+
+```{r}
+Mostwins_Batfirst <- matches %>% filter((toss_winner == winner) & (toss_decision == "bat")) %>% count(winner)
+```
+
+```{r}
+Mostwins_Batfirst %>% ggplot(aes(x = fct_reorder(winner, n), y = n, color = "black", fill = winner)) + 
+  geom_col() +
+  coord_flip() +
+  labs(title = "Most wins by teams when choose to Bat first",
+       x = "Teams",
+       y = "Number of wins",
+       caption = "IPL Dataset of matches from 2008 - 2017") +
+  theme_bw() +
+  theme(legend.position = "")
+```
+
+This below graph shows teams who chose to field first and win.
+
+```{r}
+Mostwins_fieldfirst <- matches %>% filter((toss_winner == winner) & (toss_decision == "field")) %>% count(winner)
+
+Mostwins_fieldfirst %>% ggplot(aes(x = fct_reorder(winner, n), y = n, color = "black", fill = winner)) + 
+  geom_col() +
+  coord_flip() +
+  labs(title = "Most wins by teams when choose to Field first",
+       x = "Teams",
+       y = "Number of wins",
+       caption = "IPL Dataset of matches from 2008 - 2017") +
+  theme_bw() +
+  theme(legend.position = "")
+```
+This below graph shows best players in the League.
+
+```{r}
+Most_Player_of_match <- matches%>% count(player_of_match) %>% filter(n > 10)
+
+Most_Player_of_match %>% ggplot(aes(x = fct_reorder(player_of_match, n), y = n, color = "black", fill = player_of_match)) +
+  geom_col() +
+  theme_bw() + 
+  labs(title = " Players who won the most Player_of_Matches(MVP)",
+       x = "Name of the Player",
+       y = " Number of MVPs",
+       caption =  "IPL Dataset of matches from 2008 - 2017") +
+  theme(legend.position = " ",
+        axis.text.x = element_text(angle = 45,
+                                   size = 8,
+                                   vjust = 0.70))
+```
+
+This below graph shows distribution of teams winning by more than 50 runs.
+
+```{r}
+MostWin_byruns <- matches %>% filter(win_by_runs > 50) 
+
+MostWin_byruns %>% ggplot(aes(x = win_by_runs, color = "black", fill = winner)) +
+  geom_histogram() +
+  labs(title = "Distribution of teams winning by more than 50 runs",
+       x = "Win by Runs",
+       y = "Number of times the team won",
+       caption = "IPL Dataset of matches from 2008 - 2017") +
+  theme_bw() +
+  theme()
+```
+
+This below graph shows the distribution of teams winning by more than 5 wickets.
+
+```{r}
+MostWin_bywickets <- matches %>% filter(win_by_wickets >= 5)
+
+MostWin_bywickets %>% ggplot(aes(x = win_by_wickets, color = "black", fill = winner)) +
+  geom_histogram() +
+  labs(title = "Distribution of teams winning by more than 5 wickets",
+       x = "Win by wickets",
+       y = "Number of times the team won",
+       caption = "IPL Dataset of matches from 2008 - 2017") +
+  theme_bw() +
+  theme()
+```
+
+This below plot shows most wins when field first
+
+```{r}
+Match1 <- DeliveriesData %>% filter((match_id == 1))
+
+Match1 %>% filter(inning == 1) %>% count(dismissal_kind)
+
+Match1 %>% filter(inning == 1) %>% count(batsman_runs)
+
+data <- Mostwins_fieldfirst
+
+fig <- plot_ly(data, labels = ~winner, values = ~n, type = 'pie')
+fig <- fig %>% layout(title = 'Match won when Field first',
+         xaxis = list(showgrid = FALSE, zeroline = FALSE, showticklabels = FALSE),
+         yaxis = list(showgrid = FALSE, zeroline = FALSE, showticklabels = FALSE))
+
+fig
+```
+
+## Decision Tree Model
+
+The basic concept behind decision trees is that each node in the tree represents a potential decision in the game. The branches of the tree are then used to identify the most likely outcome of the decision. For example, a decision tree might look at the relative strengths of a team's offense(Net.RR) and decide whether it is more likely to win or lose the game. By analyzing the data and making a decision at every node, the decision tree can generate a prediction of the outcome of the game.
+
+To implement the Decision Tree model we used the "rpart" and "rpart.plot" . and the train data which contains all the required features the main features used in this model are. toss_winner,
+toss_decision, Net.RR_team1, Net.RR_team2, Pts.team1, Pts.team2. These features are used to predict the winner of the game.
+
+
+```{r}
+library(rpart)
+library(rpart.plot)
+library(rattle)
+library(caret)
+set.seed(222)
+
+model1 <- rpart(winner ~ ., data = train, method = "class")
+
+```
+## Evaluation of Model using Confusion Matrix
+
+The confusion matrix is a table that is often used to describe the performance of a classification model on a set of test data for which the true values are known. It allows the user to see the model's predictions in relation to the actual outcomes. We can use this information to calculate the accuracy of the model.
+
+```{r}
+pred <- predict(model1, test, type = "class")
+
+table_mat <- table(test$winner, pred)
+
+accuracy_Test <- (sum(diag(table_mat)) / sum(table_mat))*100
+
+accuracy_Test
+
+print(paste('Accuracy for test', accuracy_Test))
+
+
+```
+
+From the confusion matrix we can understand that this model of Decision Tree is performing at an accuracy of 3.4% which is quite less than what we have expected. This may be due to under fitting of the model.
+
+
+# Results and Discussion
+
+
+This plot shows the predictions made by the model and accuracy of the model. As we can see from the plot Mumbai Indians have the highest chance of winning against any team this is true since 
+Mumbai Indians have the highest number of Championships since the start of IPL in 2008.
+
+```{r, warning=FALSE}
+
+rpart.plot(model1)
+
+```
+Although the accuracy of the model is very low but the insights from the model is accurate.
+So this can be improved by dimensionality reduction technique and using different models.
+
+
+
+# Conclusion
+
+After prepossessing, training and testing the model with the help of Decision Tree which resulted in an accuracy of 3.4% we can understand that this model is under fitted and
+Decision Tree approach is not suitable of this problem of sports analysis.
+
+## Future Scope
+
+In future we can improve on this project by using the dimensionality reduction technique and 
+using different models to train the data. Further, after generating an accurate model we can create a website or app where users can interact and predict the winner of a game.
+
+
+# Data and software availability
+
+The data and software used in this project are all open source available on the internet.
+Rstudio and packages available in the Rstudio. The data is extracted from kaggle.com
+and all the data sets are publicly available.
+
+This github page contains all the files and data used in this project:
+
+
+
+
+# References
+
+Haghighat, M., Rastegari, H., Nourafza, N., Branch, N., & Esfahan, I. (2013). A review of data mining techniques for result prediction in sports. Advances in Computer Science: an International Journal, 2(5), 7-12.
+
+Horvat, T., & Job, J. (2020). The use of machine learning in sport outcome prediction: A review. Wiley Interdisciplinary Reviews: Data Mining and Knowledge Discovery, 10(5), e1380.
+
+Akshitrai. (2020, September 23). ML in everything : IPL winner prediction. Kaggle. Retrieved November 16, 2022, from https://www.kaggle.com/code/akshitrai/ml-in-everything-ipl-winner-prediction
+
+
+## links:
+
+"https://www.researchgate.net/profile/Hamid-Rastegari-2/publication/
+262560138_A_Review_of_Data_Mining_Techniques_for_Result_Prediction_in_Sports/
+links/00b7d537f853eba5fe000000/
+A-Review-of-Data-Mining-Techniques-for-Result-Prediction-in-Sports.pdf"
+
+"https://www.kaggle.com/code/akshitrai/ml-in-everything-ipl-winner-prediction"
+
+"https://wires.onlinelibrary.wiley.com/doi/pdf/10.1002/
+widm.1380?casa_token=2XItw_L8N2cAAAAA%3AQBNGTCiw7x36yKoE5din8w37QbWwc2Dkx7ldBeBu
+hfHMuMqlP2yZNrHEloAKCm7jpI6Uj8LDdtw7NDjT"
+
+
+
+
